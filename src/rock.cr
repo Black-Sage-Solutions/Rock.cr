@@ -1,26 +1,5 @@
+require "./rock/libc"
 require "termios"
-
-lib LibC
-  struct Winsize
-    ws_row : UInt16
-    ws_col : UInt16
-    ws_xpixel : UInt16
-    ws_ypixel : UInt16
-  end
-
-  # TIOCGWINSZ is a magic number passed to ioctl that requests the current
-  # terminal window size. It is platform dependent (see
-  # https://stackoverflow.com/a/4286840).
-  {% begin %}
-    {% if flag?(:darwin) || flag?(:bsd) %}
-      TIOCGWINSZ = 0x40087468
-    {% elsif flag?(:unix) %}
-      TIOCGWINSZ = 0x5413
-    {% end %}
-  {% end %}
-
-  fun ioctl(fd : Int32, request : UInt64, ...) : Int32
-end
 
 def get_term_dim() : LibC::Winsize
   ws = LibC::Winsize.new
