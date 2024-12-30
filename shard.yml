@@ -1,0 +1,17 @@
+name: Rock
+version: 0.1.0
+crystal: ">= 1.14"
+
+authors:
+  - Black Sage Solutions S.R.L <us@blacksage.solutions>
+
+description: |
+  A solid and strong text editor built with the Crystal Programming Language!
+
+github: Black-Sage-Solutions/Rock.cr
+
+license: MPL-2.0
+
+targets:
+  Rock:
+    main: src/rock.cr
