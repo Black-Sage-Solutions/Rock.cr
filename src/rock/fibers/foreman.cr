@@ -10,6 +10,12 @@
 module Rock::Foreman
   class_property! device : Terminal::Device
 
+  class_getter radio : Quarry::Radio(EventKind) = Quarry::Radio(EventKind).new
+
+  enum EventKind
+    Quit
+  end
+
   def self.run
     # TODO: reference fiber for finer control?
     spawn name: "Foreman" do
@@ -26,8 +32,7 @@ module Rock::Foreman
         # to confirm yet if this happens or not.
         case buf.first
         when 3 # ctl_c
-          device.close
-          exit(0)
+          radio.send EventKind::Quit
         when 27 # \e
           device.mouse.parse(buf).each do |ev|
             Terminal::Mouse.radio.send ev

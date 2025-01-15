@@ -20,12 +20,14 @@ module Rock
         # for example quitting the editor and running the necessary cleanup
         # steps that all the modules may need to do
         #
-        # Fiber.suspend
-        sleep 1.second
+        case Foreman.radio.receive
+        in Foreman::EventKind::Quit
+          break
+        end
       end
     ensure
       device.close
-      device.output.write "\e[0E".to_slice
+      STDOUT.write "\e[0E".to_slice
       puts "so long gay bowsie!"
       0 # FIXME: keep track of an exit code status
     end
