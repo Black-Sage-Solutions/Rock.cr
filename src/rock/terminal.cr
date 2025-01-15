@@ -148,6 +148,10 @@ module Rock::Terminal
         raise IO::Error.from_errno("tcgetattr")
       end
 
+      # TODO: use xterm's private modes, possible for achieving similar
+      #       behaviour nvim does on startup and exit
+      #       https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797?permalink_comment_id=3878578#common-private-modes
+
       @initial_term_mode = term_mode
 
       # Disabling input device's (terminal) communication controls.
@@ -231,8 +235,22 @@ module Rock::Terminal
       @output.not_nil!
     end
 
+    # Clear the output display
+    #
+    # Note: there are 2 ESC Erase sequences that clear the terminal that have
+    #       different mechanics.
+    #       '\e[0J' or '\e[J' will erase the display
+    #       '\e[2J' will erase the screen
+    #       the difference is the 2J sequence will page the content, similar
+    #       to how CTRL-l in the shell will clear the screen but scrolling up
+    #       will show the previous content. 0J or J will delete the output
+    #       permanently.
+    #
+    #       So for the main drawing procedure of the editor, 0J or J sequences
+    #       should be used.
     def clear
-      output.write "\e[2J".to_slice
+      output.write "\e[0J".to_slice
+      output.write "\e[0;0H".to_slice
     end
 
     # TODO: find best way for running this code when the program is exitting
@@ -252,6 +270,7 @@ module Rock::Terminal
     end
 
     def draw(&block : IO::FileDescriptor -> Nil)
+      clear
       yield output
     end
   end
