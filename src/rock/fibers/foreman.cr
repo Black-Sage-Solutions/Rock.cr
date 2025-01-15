@@ -11,12 +11,19 @@ module Rock::Foreman
   class_property! device : Terminal::Device
 
   def self.run
+    # TODO: reference fiber for finer control?
     spawn name: "Foreman" do
       loop do
         buf = device.input.peek
         break unless buf.size
 
-        # There can be multiple input sequences within a read from STDIN
+        # So far each read from the input buffer has yielded either key or
+        # mouse sequences.
+        # It's unclear if there will be a mix of sequences, including in
+        # situtations when this fiber is blocked from reading the input buffer
+        # for some amount of time. Due to the difficulty of gathering the
+        # real-time data when I was experiencing this behaviour, I'm not able
+        # to confirm yet if this happens or not.
         case buf.first
         when 3 # ctl_c
           device.close

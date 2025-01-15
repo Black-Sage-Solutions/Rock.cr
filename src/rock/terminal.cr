@@ -87,6 +87,11 @@ module Rock::Terminal
       @history = Bytes.new 0
     end
 
+    # FIXME?: at times there maybe multiple key sequences when reading from
+    #         input, usually do to the user pressing 2 keys at or very close
+    #         to the same time.
+    #         Similar to mouse sequences, may want to process key sequences
+    #         individually instead.
     def parse(stream : Bytes)
       @history += stream
       find_keymaps
@@ -136,6 +141,20 @@ module Rock::Terminal
     getter! keys : Terminal::Keys
     getter! mouse : Terminal::Mouse
 
+    # There can be multiple input sequences when reading from STDIN,
+    # eg. 2 keys or 4 mouse sequences
+    #
+    # Additionally, when reading from within a separate fiber, the STDIN buffer
+    # can accumulate when the containing fiber is waiting for other fibers to
+    # finish.
+    #
+    # Important to note, at this time it's unclear under expected conditions,
+    # when reading/peeking STDIN for mouse or key sequences, if the buffer will
+    # solely have mouse sequences or key button sequences.
+    #
+    # As well, with the above situation when the STDIN buffer is accumulating
+    # due to the processing fiber being blocked, if there are a mix of key and
+    # mouse sequences.
     @input = STDIN
     @output = STDOUT
 
