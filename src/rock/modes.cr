@@ -1,10 +1,8 @@
-module Rock
-  enum Mode
-    Command
-    Normal
-    Insert
-    Visual
-    VisualBlock
-    VisualLine
-  end
+enum Rock::Mode
+  Command
+  Normal
+  Insert
+  Visual
+  VisualBlock
+  VisualLine
 end
