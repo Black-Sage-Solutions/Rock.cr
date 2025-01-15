@@ -22,7 +22,7 @@ module Rock::Screen
 
     spawn name: "UI" do
       loop do
-        event = Quarry::Radio.receive_first(
+        event = Channel.receive_first(
           Terminal::Keys.radio,
           Terminal::Mouse.radio,
         )

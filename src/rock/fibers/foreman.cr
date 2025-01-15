@@ -10,7 +10,7 @@
 module Rock::Foreman
   class_property! device : Terminal::Device
 
-  class_getter radio : Quarry::Radio(EventKind) = Quarry::Radio(EventKind).new
+  class_getter radio : Channel(EventKind) = Channel(EventKind).new
 
   enum EventKind
     Quit

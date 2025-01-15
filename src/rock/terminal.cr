@@ -1,6 +1,6 @@
 module Rock::Terminal
   class Mouse
-    class_property radio : Quarry::Radio(Mouse::Event) = Quarry::Radio(Mouse::Event).new
+    class_property radio : Channel(Mouse::Event) = Channel(Mouse::Event).new
 
     def initialize(@device : IO::FileDescriptor, @vt_mode = Mode::SGR)
       # https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
@@ -73,7 +73,7 @@ module Rock::Terminal
 
   class Keys
     # Setting as a class instance for singleton approach
-    class_property radio : Quarry::Radio(Keys::Event) = Quarry::Radio(Keys::Event).new
+    class_property radio : Channel(Keys::Event) = Channel(Keys::Event).new
 
     # TODO: allocate bytes with the size of the largest key map
     # Currently intent to have only 1 instance of this object running in the
