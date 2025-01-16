@@ -72,65 +72,55 @@ module Rock::Terminal
   end
 
   class Keys
-    # Setting as a class instance for singleton approach
     class_property radio : Channel(Keys::Event) = Channel(Keys::Event).new
 
-    # TODO: allocate bytes with the size of the largest key map
-    # Currently intent to have only 1 instance of this object running in the
-    # Foreman fiber, this handling is not multi-thread safe
-    @history = Bytes.new 0
+    # TODO: set alloc size relative to KeyMap's largest possible key, but the
+    #       question becomes when should that happen?
+    #       Find out when Rock would finish adding the keymaps.
+    @history = Bytes.new 10
+    @append : Pointer::Appender(UInt8)
 
     def initialize
+       @append = @history.to_unsafe.appender
     end
 
     def clear
-      @history = Bytes.new 0
+      @history.fill 0
+      @append = @history.to_unsafe.appender
     end
 
     # FIXME?: at times there maybe multiple key sequences when reading from
-    #         input, usually do to the user pressing 2 keys at or very close
+    #         input, usually due to the user pressing 2 keys at or very close
     #         to the same time.
     #         Similar to mouse sequences, may want to process key sequences
     #         individually instead.
-    def parse(stream : Bytes)
-      @history += stream
-      find_keymaps
-    end
-
-    private def find_keymaps : Event
-      # TODO: find most optimal data structure for searching based on key path
-      # options could be a vector, b-tree
-      keys_and_actions = {
-        "h"  => -> { },
-        "j"  => -> { },
-        "k"  => -> { },
-        "l"  => -> { },
-        "dd" => -> { },
-      }
-
-      # TODO: mode check
-      found_actions = keys_and_actions.select do |k, v|
-        k.to_slice == @history ||
-          k.to_unsafe.memcmp(@history.to_unsafe, @history.bytesize) == 0
-      end
-
-      begin
-        case found_actions.size
+    def parse(stream : Bytes) : Slice(Event)
+      stream.map do |b|
+        @append << b
+        current = @append.to_slice.dup
+        actions = KeyMap.find_actions current
+        case actions.size
+        when 0
+          clear
+          Keys::Event.new current, :miss
         when 1
-          Keys::Event.new @history, :yes, found_actions.first[1]
-        when .> 1
-          Keys::Event.new @history, :partial
+          clear
+          Keys::Event.new current, :yes, actions.first[1]
         else
-          Keys::Event.new @history, :no
+          # idk what do in code for having a running timer when the user
+          # hasn't done any addition input when there is an exact match within
+          # the partial list
+          Keys::Event.new current, :partial
         end
-      ensure
-        clear unless found_actions.size > 1
       end
     end
   end
 
   struct Keys::Event
-    def initialize(@keys : Bytes, @found : Symbol, @action : Proc(Nil)? = nil)
+    getter keys, hits
+    getter? action
+
+    def initialize(@keys : Bytes, @hits : Symbol, @action : KeyMap::Action? = nil)
     end
   end
 

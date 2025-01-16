@@ -1,7 +1,14 @@
-struct Rock::Cursor
+class Rock::Cursor
   property x : UInt32, y : UInt32
 
-  def initialize(@x, @y, @winsize : LibC::Winsize); end
+  def initialize(@x, @y, @winsize : LibC::Winsize)
+    KeyMap.add "h", &->back_x
+    KeyMap.add "j", &->down_y
+    KeyMap.add "k", &->up_y
+    KeyMap.add "l", &->fwd_x
+    KeyMap.add "\u0010", &->prev_line # Ctrl-p
+    KeyMap.add "\u000E", &->next_line # Ctrl-n
+  end
 
   def next_line
     @x = 1
@@ -28,11 +35,6 @@ struct Rock::Cursor
 
   def up_y
     @y -= 1 if @y > 1
-  end
-
-  # REMOVE: handle the mechanics in the object that would write to screen/terminal
-  def move
-    STDOUT.write "\e[#{@y};#{@x}H".to_slice
   end
 
   def to_s(io : IO) : Nil

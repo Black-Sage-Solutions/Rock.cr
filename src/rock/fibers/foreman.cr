@@ -16,6 +16,8 @@ module Rock::Foreman
     Quit
   end
 
+  KeyMap.add "\u0003" { radio.send EventKind::Quit }
+
   def self.run
     # TODO: reference fiber for finer control?
     spawn name: "Foreman" do
@@ -31,14 +33,17 @@ module Rock::Foreman
         # real-time data when I was experiencing this behaviour, I'm not able
         # to confirm yet if this happens or not.
         case buf.first
-        when 3 # ctl_c
-          radio.send EventKind::Quit
-        when 27 # \e
+        when 27 # \e, start of CSI sequence, for right now assuming mouse events
+          # TODO: filter out mouse movements when there are no button presses,
+          #       I can't think of any reason for needing to process tracking
           device.mouse.parse(buf).each do |ev|
-            Terminal::Mouse.radio.send ev
+            # TODO: need to store mouse state for button presses
+            Terminal::Mouse.radio.send ev unless ev.button == 3
           end
         else
-          Terminal::Keys.radio.send device.keys.parse(buf)
+          device.keys.parse(buf).each do |ev|
+            Terminal::Keys.radio.send ev
+          end
         end
 
         # Must clear the device's IO for next iteration's use of `.peek`

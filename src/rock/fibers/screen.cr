@@ -2,6 +2,10 @@ module Rock::Screen
   class_property! device : Terminal::Device
 
   def self.run
+    # TODO: have cursor and mode per pane
+    c = Cursor.new 1, 1, device.dim
+    m = Mode::Normal
+
     device.draw do |d|
       d.write "\e[2J".to_slice
 
@@ -12,9 +16,9 @@ module Rock::Screen
 
       d.write "\e[#{device.dim.ws_row - 2};#{0}H".to_slice
       d.write "\e[2K".to_slice
-      d.write "Mode: TODO".to_slice
+      d.write "Mode: #{m}".to_slice
       d.write "\e[4C".to_slice
-      d.write "Cursor: TOD".to_slice
+      d.write "Cursor: #{c}".to_slice
       d.write "\e[4C".to_slice
       d.write "Event: #{nil}".to_slice
       d.write "\e[0E".to_slice
@@ -22,10 +26,15 @@ module Rock::Screen
 
     spawn name: "UI" do
       loop do
-        event = Channel.receive_first(
+        case event = Channel.receive_first(
           Terminal::Keys.radio,
           Terminal::Mouse.radio,
         )
+        in Terminal::Keys::Event
+          # TODO: evaluate spawning a fiber for input events
+          event.action?.not_nil!.call if event.hits == :yes
+        in Terminal::Mouse::Event
+        end
 
         # Looks like this is what I was looking for on handling user input
         # without blocking the renderer
@@ -48,9 +57,9 @@ module Rock::Screen
 
           d.write "\e[#{device.dim.ws_row - 2};#{0}H".to_slice
           d.write "\e[2K".to_slice
-          d.write "Mode: TODO".to_slice
+          d.write "Mode: #{m}".to_slice
           d.write "\e[4C".to_slice
-          d.write "Cursor: TOD".to_slice
+          d.write "Cursor: #{c}".to_slice
           d.write "\e[4C".to_slice
           d.write "Event: #{event}".to_slice
           d.write "\e[0E".to_slice

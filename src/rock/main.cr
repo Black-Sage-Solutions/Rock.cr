@@ -4,11 +4,6 @@ module Rock
   def self.main
     device = Terminal::Device.new
     begin
-      # TODO: multiple cursors
-      # there's a need for at least 2, 1 for normal/insert, 1 for command
-      c = Cursor.new 1, 1, device.dim
-      m = Mode::Normal
-
       Screen.device = device
       Screen.run
       Foreman.device = device
