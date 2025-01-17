@@ -1,10 +1,20 @@
 module Rock::Screen
   class_property! device : Terminal::Device
 
+  class_property mode = Mode::Normal
+
+  # Note: Need reference within the Proc for modules or objects because the
+  #       inline block doesnt retain the same scope when running in the fiber
+  KeyMap.add "\e" { Screen.mode = Mode::Normal }
+  KeyMap.add "i" { Screen.mode = Mode::Insert }
+  KeyMap.add "R" { self.mode = Mode::Replace }
+  KeyMap.add "v" { self.mode = Mode::Visual }
+  KeyMap.add "\u0016" { self.mode = Mode::VisualBlock }
+  KeyMap.add "V" { self.mode = Mode::VisualLine }
+
   def self.run
     # TODO: have cursor and mode per pane
     c = Cursor.new 1, 1, device.dim
-    m = Mode::Normal
 
     device.draw do |d|
       d.write "\e[2J".to_slice
@@ -16,7 +26,7 @@ module Rock::Screen
 
       d.write "\e[#{device.dim.ws_row - 2};#{0}H".to_slice
       d.write "\e[2K".to_slice
-      d.write "Mode: #{m}".to_slice
+      d.write "Mode: #{mode}".to_slice
       d.write "\e[4C".to_slice
       d.write "Cursor: #{c}".to_slice
       d.write "\e[4C".to_slice
@@ -24,7 +34,7 @@ module Rock::Screen
       d.write "\e[0E".to_slice
     end
 
-    spawn name: "UI" do
+    spawn name: "Screen" do
       loop do
         case event = Channel.receive_first(
           Terminal::Keys.radio,
@@ -57,7 +67,7 @@ module Rock::Screen
 
           d.write "\e[#{device.dim.ws_row - 2};#{0}H".to_slice
           d.write "\e[2K".to_slice
-          d.write "Mode: #{m}".to_slice
+          d.write "Mode: #{mode}".to_slice
           d.write "\e[4C".to_slice
           d.write "Cursor: #{c}".to_slice
           d.write "\e[4C".to_slice

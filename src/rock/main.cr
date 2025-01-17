@@ -16,7 +16,7 @@ module Rock
         # steps that all the modules may need to do
         #
         case Foreman.radio.receive
-        in Foreman::EventKind::Quit
+        in Foreman::Event::Quit
           break
         end
       end

@@ -10,13 +10,21 @@
 module Rock::Foreman
   class_property! device : Terminal::Device
 
-  class_getter radio : Channel(EventKind) = Channel(EventKind).new
+  class_getter radio : Channel(Event) = Channel(Event).new
 
-  enum EventKind
+  enum Event
     Quit
   end
 
-  KeyMap.add "\u0003" { radio.send EventKind::Quit }
+  KeyMap.add "\u0003" do
+    case Screen.mode
+    when Mode::Normal
+      # TODO: warn user of unsaved work, have user be explicit on quit
+      radio.send Event::Quit
+    else
+      Screen.mode = Mode::Normal
+    end
+  end
 
   def self.run
     # TODO: reference fiber for finer control?

@@ -10,12 +10,20 @@ module Rock::KeyMap
   # Would need to add `extend self` to the module for the delegate macro to work, I think
   # delegate :[], :[]?, :[]=, :delete, :fetch, :has_key?, :keys, :select, :size, to: @@map
 
-  def self.add(name : String, &block : Action)
-    @@map[name.to_slice] = block
+  def self.add(seq : String, &block : Action)
+    @@map[seq.to_slice] = block
   end
 
-  def self.[](name : String) : Action
-    @@map[name.to_slice]
+  def self.[]=(seq : String, block : Action)
+    @@map[seq.to_slice] = block
+  end
+
+  def self.[]=(seq : Bytes, block : Action)
+    @@map[seq] = block
+  end
+
+  def self.[](seq : String) : Action
+    @@map[seq.to_slice]
   end
 
   def self.[](seq : Bytes) : Action
