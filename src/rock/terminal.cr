@@ -2,6 +2,8 @@ module Rock::Terminal
   class Mouse
     class_property radio : Channel(Mouse::Event) = Channel(Mouse::Event).new
 
+    getter prefix : Bytes = Bytes[27, 91, 60] # '\e[<' CSI < prefix for SGR
+
     def initialize(@device : IO::FileDescriptor, @vt_mode = Mode::SGR)
       # https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
       # Turn on mouse events for SGR ext mode and any mouse events

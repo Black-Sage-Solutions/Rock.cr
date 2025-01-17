@@ -40,8 +40,8 @@ module Rock::Foreman
         # for some amount of time. Due to the difficulty of gathering the
         # real-time data when I was experiencing this behaviour, I'm not able
         # to confirm yet if this happens or not.
-        case buf.first
-        when 27 # \e, start of CSI sequence, for right now assuming mouse events
+        case buf[0, 3]?
+        when device.mouse.prefix
           # TODO: filter out mouse movements when there are no button presses,
           #       I can't think of any reason for needing to process tracking
           device.mouse.parse(buf).each do |ev|
