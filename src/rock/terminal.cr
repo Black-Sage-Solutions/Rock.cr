@@ -91,11 +91,6 @@ module Rock::Terminal
       @append = @history.to_unsafe.appender
     end
 
-    # FIXME?: at times there maybe multiple key sequences when reading from
-    #         input, usually due to the user pressing 2 keys at or very close
-    #         to the same time.
-    #         Similar to mouse sequences, may want to process key sequences
-    #         individually instead.
     def parse(stream : Bytes) : Slice(Event)
       stream.map do |b|
         @append << b
@@ -264,8 +259,6 @@ module Rock::Terminal
       output.write "\e[0;0H".to_slice
     end
 
-    # TODO: find best way for running this code when the program is exitting
-    #       at any point
     def close
       output.write "\e[0J".to_slice
       output.write "Terminal::Device closing...".to_slice
