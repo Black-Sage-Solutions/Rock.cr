@@ -5,15 +5,15 @@ module Rock::Screen
 
   # Note: Need reference within the Proc for modules or objects because the
   #       inline block doesnt retain the same scope when running in the fiber
-  KeyMap.add "\e" { Screen.mode = Mode::Normal }
-  KeyMap.add "i" { Screen.mode = Mode::Insert }
-  KeyMap.add "R" { self.mode = Mode::Replace }
-  KeyMap.add "v" { self.mode = Mode::Visual }
-  KeyMap.add "\u0016" { self.mode = Mode::VisualBlock }
-  KeyMap.add "V" { self.mode = Mode::VisualLine }
+  KeyMap.add(Mode.all, "\e") { Screen.mode = Mode::Normal }
+  KeyMap.add(Mode::Normal, "i") { Screen.mode = Mode::Insert }
+  KeyMap.add(Mode::Normal, "R") { self.mode = Mode::Replace }
+  visuals = Mode.include(:normal, :visual, :visualblock, :visualline)
+  KeyMap.add(visuals, "v") { self.mode = Mode::Visual }
+  KeyMap.add(visuals, "\u0016") { self.mode = Mode::VisualBlock }
+  KeyMap.add(visuals, "V") { self.mode = Mode::VisualLine }
 
   def self.run
-    # TODO: have cursor and mode per pane
     c = Cursor.new 1, 1, device.dim
 
     device.draw do |d|

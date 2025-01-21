@@ -16,7 +16,7 @@ module Rock::Foreman
     Quit
   end
 
-  KeyMap.add "\u0003" do
+  KeyMap.add Mode.all, "\u0003" do
     case Screen.mode
     when Mode::Normal
       # TODO: warn user of unsaved work, have user be explicit on quit
