@@ -83,7 +83,7 @@ module Rock::Terminal
     @append : Pointer::Appender(UInt8)
 
     def initialize
-       @append = @history.to_unsafe.appender
+      @append = @history.to_unsafe.appender
     end
 
     def clear
@@ -171,7 +171,7 @@ module Rock::Terminal
       # BRKINT: disabled to handle a break condition `tcsendbreak()` as SIGINT
       #
       # ICRNL: disabled to set ctrl-m and enter key to real value 13 instead
-      #        of 13, idk the reason for the translating
+      #        of 10, idk the reason for the translating
       #
       # INPCK: disabled of parity checking, doesn't apply to modern terminal
       #       emulators
