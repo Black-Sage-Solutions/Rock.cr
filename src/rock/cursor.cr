@@ -2,13 +2,6 @@ class Rock::Cursor
   property x : UInt32, y : UInt32
 
   def initialize(@x, @y, @winsize : LibC::Winsize)
-    modes = Mode.exclude(:insert, :replace, :command)
-    KeyMap.add modes, "h", &->back_x
-    KeyMap.add modes, "j", &->down_y
-    KeyMap.add modes, "k", &->up_y
-    KeyMap.add modes, "l", &->fwd_x
-    KeyMap.add modes, "\u0010", &->prev_line # Ctrl-p
-    KeyMap.add modes, "\u000E", &->next_line # Ctrl-n
   end
 
   def next_line
