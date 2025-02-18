@@ -2,7 +2,7 @@ module Rock::Screen
   class_property! device : Terminal::Device
 
   class_property act_bench = 0
-  class_property mode = Mode::Normal
+  class_property mode = Mode::Insert
 
   @@benches = Array(Bench).new
 
@@ -29,12 +29,12 @@ module Rock::Screen
   KeyMap.add Mode::Insert, Bytes[13], &-> { update_content Bytes[13] }
 
   cursor_modes = Mode.exclude(:insert, :replace, :command)
-  KeyMap.add cursor_modes, "h", &-> { active_bench.c.back_x }
-  KeyMap.add cursor_modes, "j", &-> { active_bench.c.down_y }
-  KeyMap.add cursor_modes, "k", &-> { active_bench.c.up_y }
-  KeyMap.add cursor_modes, "l", &-> { active_bench.c.fwd_x }
-  KeyMap.add cursor_modes, "\u0010", &-> { active_bench.c.prev_line } # Ctrl-p
-  KeyMap.add cursor_modes, "\u000E", &-> { active_bench.c.next_line } # Ctrl-n
+  KeyMap.add cursor_modes, "h", &-> { active_bench.bwd }
+  KeyMap.add cursor_modes, "j", &-> { active_bench.down }
+  KeyMap.add cursor_modes, "k", &-> { active_bench.up }
+  KeyMap.add cursor_modes, "l", &-> { active_bench.fwd }
+  KeyMap.add cursor_modes, "\u0010", &-> { active_bench.prev_line } # Ctrl-p
+  KeyMap.add cursor_modes, "\u000E", &-> { active_bench.next_line } # Ctrl-n
 
   def self.active_bench
     @@benches[act_bench]
@@ -50,6 +50,21 @@ module Rock::Screen
 
     device.draw &.write("\e[2J".to_slice)
 
+    Screen.device.draw do |o|
+      bench = active_bench
+
+      o.write bench.render.to_slice
+
+      o.write "\e[#{Screen.device.dim.ws_row - 2};#{0}H".to_slice
+      o.write "\e[2K".to_slice
+      o.write "[#{Screen.mode}]".to_slice
+      o.write "\e[4C".to_slice
+      o.write "#{bench.pos[1]},#{bench.pos[0]}".to_slice
+      o.write "\e[4C".to_slice
+
+      o.write "\e[#{bench.pos[1]};#{bench.pos[0]}H".to_slice
+    end
+
     spawn name: "Screen" do
       loop do
         case event = Channel.receive_first(
@@ -58,7 +73,9 @@ module Rock::Screen
         )
         in Terminal::Keys::Event
           # TODO: evaluate spawning a fiber for input events
-          event.action?.not_nil!.call if event.hits == :yes
+          # Note: initial test here, helps stop flickering when mashing on the keyboard
+          spawn event.action?.not_nil!.call if event.hits == :yes
+          Fiber.yield
         in Terminal::Mouse::Event
         end
 
@@ -80,16 +97,19 @@ module Rock::Screen
 
           o.write bench.render.to_slice
 
+          o.write "\e[#{(Screen.device.dim.ws_row / 2).to_i};0H".to_slice
+          o.write "#{bench.render.to_slice}".to_slice
+
           o.write "\e[#{Screen.device.dim.ws_row - 2};#{0}H".to_slice
           o.write "\e[2K".to_slice
-          o.write "Mode: #{Screen.mode}".to_slice
+          o.write "[#{Screen.mode}]".to_slice
           o.write "\e[4C".to_slice
-          o.write "Cursor: #{bench.c}".to_slice
+          o.write "#{bench.pos[1]},#{bench.pos[0]}".to_slice
           o.write "\e[4C".to_slice
           o.write "Event: #{event}".to_slice
           o.write "\e[0E".to_slice
 
-          o.write "\e[#{bench.c.y};#{bench.c.x}H".to_slice
+          o.write "\e[#{bench.pos[1]};#{bench.pos[0]}H".to_slice
         end
 
         # sleep 16.milliseconds

@@ -1,13 +1,14 @@
 # Equivalent to Pane
 class Rock::Bench
-  @bounds : LibC::Winsize
+  property view_bounds : LibC::Winsize
+
   @face : Face
 
-  def initialize(@bounds)
-    @face = Face.new @bounds
+  def initialize(@view_bounds)
+    @face = Face.new @view_bounds
   end
 
-  delegate :c, to: @face
+  delegate :bwd, :fwd, :down, :up, :next_line, :prev_line, :pos, to: @face
 
   def update_content(data)
     @face.write data
