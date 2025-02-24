@@ -6,87 +6,82 @@ module Rock
 
   class Entry
     getter location : EntryKind
-    getter chronology : Int32
+    property size : Int32
     property start : Int32
-    property length : Int32
-    property content : Bytes
-    property new_lines_idx = Array(Int32).new
 
-    def initialize(@location, @start, @chronology, @content)
-      @length = @content.size
+    def initialize(@location, @start, @size)
     end
 
-    delegate :size, to: @content
-
-    def self.split(entry : Entry, start, length, chronology)
-      offset = start - entry.start
-      head = Entry.new entry.location, entry.start, chronology, entry.content[...offset]
-      tail = Entry.new entry.location, start + length, chronology, entry.content[offset..]
+    def self.split(entry : Entry, length)
+      head = Entry.new entry.location, entry.start, length
+      tail = Entry.new entry.location, entry.start + length, entry.size - length
       {head, tail}
     end
   end
 
   class Document
-    @edit_content : IO::Memory
-    @edit_pos : Int32
+    @edit : IO::Memory
     @original : IO::Memory
-    @chrono_count = 0
     @pieces = Array(Entry).new
 
     def initialize(file = nil)
-      @edit_content = IO::Memory.new
-      @edit_pos = 0
+      @edit = IO::Memory.new
       @original = IO::Memory.new
-      @pieces << Entry.new EntryKind::Original, 0, @chrono_count, @original.to_slice
-      @chrono_count += 1
+      @pieces << Entry.new EntryKind::Original, 0, @original.size unless @original.size == 0
     end
 
-    delegate :write, to: @edit_content
+    # Returns the logical size of the document
+    def size
+      @pieces.reduce(0) { |acc, e| acc + e.size }
+    end
 
     def to_slice
-      last = @pieces.last
-      buf = Bytes.new last.start + last.length
+      output = Bytes.new size
+      logical_offset = 0
       @pieces.each do |e|
-        pos = buf.to_unsafe + e.start
-        pos.copy_from e.content.to_unsafe, e.length
+        src = case e.location
+              in .original?
+                @original
+              in .edit?
+                @edit
+              end
+        output_start = output.to_unsafe + logical_offset
+        output_start.copy_from src.buffer + e.start, e.size
+        logical_offset += e.size
       end
-      buf
+      output
     end
 
-    def new_edit(pos)
-      @edit_content = IO::Memory.new
-      @edit_pos = pos
-    end
+    def insert(pos, content : Bytes)
+      logical_offset = 0
+      found = @pieces.each_with_index do |e, i|
+        break e, i if pos < logical_offset + e.size
+        logical_offset += e.size
+      end
 
-    def new_edit
-      new_edit @pieces.last.start + @pieces.last.length
-    end
-
-    def new_edit(col, row)
-      start = col * row
-      new_edit start
-    end
-
-    def apply
-      return if @edit_content.size == 0
-      i = @pieces.index { |e| @edit_pos > e.start && @edit_pos < (e.start + e.length) }
-      edit_entry = Entry.new EntryKind::Edit, @edit_pos, @chrono_count, @edit_content.to_slice
-      if i.nil?
-        @pieces << edit_entry
-        @chrono_count += 1
+      if found.nil? && pos == logical_offset
+        entry = Entry.new EntryKind::Edit, pos, content.size
+        @edit.write content
+        @pieces << entry
         return
       end
-      entry = @pieces.delete_at i
-      head, tail = Entry.split entry, edit_entry.start, edit_entry.length, @chrono_count
-      @chrono_count += 1
-      if i < @pieces.size
-        @pieces.insert i, head
-        @pieces.insert i + 1, edit_entry
-        @pieces.insert i + 2, tail
-      else
-        @pieces.push head, edit_entry, tail
+
+      if found.nil?
+        raise "Document: Out of Bounds for pos: '#{pos}', max bounds position is '#{logical_offset}'."
       end
-      @pieces.each(within: (i + 3)..) { |e| e.start += edit_entry.length }
+
+      found_entry, entry_idx = found
+
+      edit = Entry.new EntryKind::Edit, @edit.pos, content.size
+      @edit.write content
+
+      if pos == logical_offset
+        @pieces.insert entry_idx, edit
+      else
+        head, tail = Entry.split found_entry, pos - logical_offset
+        @pieces.insert_all entry_idx, {head, edit, tail}
+        @pieces.delete_at entry_idx + 3
+      end
     end
 
     # Save the changes to the file
