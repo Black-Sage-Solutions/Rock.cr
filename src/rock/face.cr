@@ -52,6 +52,8 @@ class Rock::Face
   def write(slice : Bytes)
     slice.each do |b|
       case b
+      # TODO: remove writing '\r' to content, need to figure out the best way
+      #       to setting the cursor when there is a '\n'
       when 13
         @doc.write_byte 10
         @doc.write_byte b
