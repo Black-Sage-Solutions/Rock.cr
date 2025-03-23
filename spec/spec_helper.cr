@@ -1,1 +1,1 @@
-# Temporarily blank for initial commit
+require "spec"
