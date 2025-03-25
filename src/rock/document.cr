@@ -17,6 +17,21 @@ module Rock
       end
     end
 
+    # Returns the content as a `String`.
+    def read
+      ptr = @src.buffer + @start
+      String.new ptr.to_slice(@size)
+    end
+
+    # Updates the stored new line indices.
+    #
+    # `#reindex` should be called when the `Entry`'s start position or size
+    # values have been changed.
+    def reindex
+      idx_range = @start..(@start + @size)
+      @line_idx.select! idx_range
+    end
+
     def self.split(entry : Entry, length)
       head = Entry.new entry.src, entry.start, length
       tail = Entry.new entry.src, entry.start + length, entry.size - length
@@ -65,6 +80,14 @@ module Rock
         break if line_count > line
       end
       entries
+    end
+
+    def find_char(x, y)
+      raise "To Implement"
+    end
+
+    def find_char(pos)
+      raise "To Implement"
     end
 
     # Gets the positional beginning and end points for the specified line
@@ -172,6 +195,7 @@ module Rock
       output
     end
 
+    # Returns the full content.
     def to_slice
       output = Bytes.new size
       logical_offset = 0
@@ -183,9 +207,132 @@ module Rock
       output
     end
 
-    def delete(pos, length)
+    # Finds the logical character position.
+    #
+    # Raises exception if an `Entry` is not found.
+    #
+    # See `find_pos?` for more details.
+    def find_pos(pos)
+      find_pos?(pos).not_nil!("Position not found: #{pos}.")
     end
 
+    # Finds the logical character position.
+    #
+    # A tuple will return the `Entry`, index position in the pieces table, and
+    # the logical offset size at the start position of the entry.
+    #
+    # Will return `Nil` if there was no entry found.
+    def find_pos?(pos)
+      logical_offset = 0
+      @pieces.each_with_index do |e, i|
+        break e, i, logical_offset if pos < logical_offset + e.size
+        logical_offset += e.size
+      end
+    end
+
+    # Gets the entries within a logical range.
+    #
+    # Will return the list of entries, the starting index position, and the
+    # starting logical byte number position.
+    #
+    # TODO: currently there is no bounds checking.
+    def get(amount : Range)
+      logical_offset = 0
+      entries = Array(Entry).new
+      start_index = 0
+      start_offset = 0
+      @pieces.each_with_index do |e, i|
+        logical_end = logical_offset + e.size
+
+        if (
+             amount.begin >= logical_offset && amount.begin < logical_end ||
+             amount.begin <= logical_offset && amount.end >= logical_end ||
+             amount.end > logical_offset && amount.end <= logical_end
+           )
+          entries << e
+          if entries.size == 1
+            start_index = i
+            start_offset = logical_offset
+          end
+        end
+
+        logical_offset = logical_end
+        # FIXME: check if the range is exclusive or not?
+        break if amount.end < logical_offset
+      end
+      return entries, start_index, start_offset
+    end
+
+    # Removes content at a specified point. The `pos` will be the logical
+    # byte number position.
+    #
+    # `Entry`s' content positioning variables are adjusted based on the
+    # starting position and the amount to delete. `Entry`s will be split when
+    # removals are inbetween an `Entry`'s content range.
+    def delete(pos, length)
+      entries, start_index, logical_offset = get pos..(pos + length)
+
+      # FIXME: this condition doesn't properly address unexpected behaviour
+      #        from `#get`.
+      return if entries.size == 0
+
+      remaining_removal_size = length
+      entry_offset = 0
+
+      entries.each_with_index(start_index) do |e, i|
+        # `e.size` is directly changed in some cases, so need to hold the
+        # initial value for making sure the `logical_offset` is the correct
+        # amount before all changes during this method call.
+        logical_end = logical_offset + e.size
+        logical_start = if start_index == i
+                          pos
+                        else
+                          logical_offset
+                        end
+
+        if logical_start == logical_offset
+          if e.size > remaining_removal_size
+            e.start += remaining_removal_size
+            e.size -= remaining_removal_size
+            e.reindex
+            remaining_removal_size = 0
+          else
+            @pieces.delete_at i + entry_offset
+            entry_offset -= 1
+            remaining_removal_size -= e.size
+          end
+        else
+          start_diff = logical_start - logical_offset
+          size = e.size - start_diff
+          if size > remaining_removal_size
+            head, tail = Entry.split e, logical_start - logical_offset
+            tail.start += remaining_removal_size
+            tail.size -= remaining_removal_size
+            tail.reindex
+            @pieces.insert_all start_index + entry_offset, {head, tail}
+            @pieces.delete_at start_index + 2 + entry_offset
+            entry_offset += 1
+            remaining_removal_size = 0
+          else
+            e.size = start_diff
+            e.reindex
+            remaining_removal_size -= size
+          end
+        end
+
+        logical_offset = logical_end
+        break if remaining_removal_size == 0
+      end
+    end
+
+    # Insert content to a particular position.
+    #
+    # Based on the logical character position, the internal table will be
+    # updated with new or splitting `Entry`s. All new `Entry`s will store
+    # content in the interal edit buffer.
+    #
+    # TODO: optimize operations for single and continuous inserts that would be
+    #       able to expand an entry
     def insert(pos, content : Bytes)
       logical_offset = 0
       found = @pieces.each_with_index do |e, i|
